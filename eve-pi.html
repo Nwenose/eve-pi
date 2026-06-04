@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EVE PI — C-N4OD</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #efefec;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #a0a09c;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --green: #1D9E75;
+    --green-bg: #e1f5ee;
+    --amber: #EF9F27;
+    --red: #E24B4A;
+    --radius: 10px;
+    --radius-sm: 7px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #242422;
+      --bg3: #2c2c2a;
+      --text: #f0f0ec;
+      --text2: #a0a09c;
+      --text3: #6b6b67;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+      --green-bg: #04342c;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 20px; }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header { margin-bottom: 20px; }
+  .header h1 { font-size: 20px; font-weight: 600; color: var(--text); }
+  .header p { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px 10px; text-align: center; }
+  .metric-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+  .metric-value { font-size: 18px; font-weight: 600; color: var(--text); }
+  .metric-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .progress-wrap { margin-bottom: 16px; }
+  .progress-bg { height: 5px; background: var(--border); border-radius: 5px; }
+  .progress-fill { height: 5px; border-radius: 5px; background: var(--green); transition: width 0.3s ease; }
+  .progress-label { font-size: 11px; color: var(--text3); margin-top: 5px; text-align: right; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 4px 16px; margin-bottom: 12px; }
+  .planet-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; user-select: none; transition: opacity 0.2s; }
+  .planet-row:last-child { border-bottom: none; }
+  .planet-row.done { opacity: 0.4; }
+  .checkbox { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .checkbox.checked { background: var(--green); border-color: var(--green); }
+  .checkmark { display: none; width: 12px; height: 9px; }
+  .checkmark path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .checkbox.checked .checkmark { display: block; }
+  .planet-icon { font-size: 20px; flex-shrink: 0; }
+  .planet-info { flex: 1; min-width: 0; }
+  .planet-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .planet-res { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .planet-isk { font-size: 12px; color: var(--text2); text-align: right; min-width: 70px; }
+  .reset-btn { width: 100%; padding: 13px; background: transparent; border: 0.5px solid var(--border2); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text2); display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+  .reset-btn:hover { background: var(--bg2); }
+  .reset-btn.all-done { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+  .last-reset { font-size: 11px; color: var(--text3); text-align: center; margin-top: 10px; }
+  .isk-section { margin-top: 20px; }
+  .isk-title { font-size: 11px; font-weight: 500; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px; }
+  .isk-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .isk-row label { font-size: 13px; color: var(--text2); min-width: 120px; }
+  .isk-row input { flex: 1; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg2); color: var(--text); font-size: 13px; outline: none; }
+  .isk-row input:focus { border-color: var(--green); }
+  svg.check-icon { width: 13px; height: 10px; }
+  svg.check-icon path { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .refresh-icon { font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>PI 체크리스트 — C-N4OD</h1>
+    <p>48h 추출 주기 · 5 캐릭터</p>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">다음 수확까지</div>
+      <div class="metric-value" id="next-time">—</div>
+      <div class="metric-sub">남은 시간</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">완료</div>
+      <div class="metric-value" id="done-count">0</div>
+      <div class="metric-sub">/ 5 행성</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">월 수익</div>
+      <div class="metric-value" id="total-month">—</div>
+      <div class="metric-sub">ISK</div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bg"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label">0 / 5 완료</div>
+  </div>
+
+  <div class="card" id="planet-list"></div>
+
+  <button class="reset-btn" id="reset-btn" onclick="resetAll()">
+    <span class="refresh-icon">↺</span>
+    <span id="reset-label">수확 완료 — 타이머 리셋</span>
+  </button>
+  <div class="last-reset" id="last-reset-text"></div>
+
+  <div class="isk-section">
+    <div class="isk-title">행성별 ISK / 일 설정</div>
+    <div id="isk-inputs"></div>
+  </div>
+</div>
+
+<script>
+const PLANETS = [
+  { id: 0, name: 'C-N4OD I',    resource: 'Bacteria', icon: '🟤' },
+  { id: 1, name: 'C-N4OD III',  resource: 'Biofuels', icon: '🟢' },
+  { id: 2, name: 'C-N4OD VII',  resource: 'Bacteria', icon: '🟤' },
+  { id: 3, name: 'C-N4OD VIII', resource: 'Water',    icon: '🔵' },
+  { id: 4, name: 'C-N4OD X',    resource: 'Water',    icon: '🔵' },
+];
+const CYCLE_MS = 48 * 3600 * 1000;
+
+let state = { checked: [false,false,false,false,false], lastReset: null, iskPerDay: [0,0,0,0,0] };
+try { const s = JSON.parse(localStorage.getItem('eve-pi-v3')); if (s) state = s; } catch(e) {}
+
+function save() { try { localStorage.setItem('eve-pi-v3', JSON.stringify(state)); } catch(e) {} }
+
+function formatISK(n) {
+  if (!n) return '—';
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return Math.round(n/1e3) + 'K';
+  return n.toLocaleString();
+}
+
+function msToHMS(ms) {
+  if (ms <= 0) return '수확 가능!';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  if (h > 0) return h + 'h ' + m + 'm';
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
+function toggle(id) {
+  state.checked[id] = !state.checked[id];
+  save();
+  render();
+}
+
+function resetAll() {
+  state.checked = [false, false, false, false, false];
+  state.lastReset = new Date().toISOString();
+  save();
+  render();
+}
+
+function updateISK(id, val) {
+  state.iskPerDay[id] = parseInt(val) || 0;
+  save();
+  render();
+}
+
+function render() {
+  const doneCount = state.checked.filter(Boolean).length;
+  const allDone = doneCount === 5;
+  const pct = (doneCount / 5) * 100;
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = doneCount + ' / 5 완료';
+  document.getElementById('done-count').textContent = doneCount;
+
+  const totalDay = state.iskPerDay.reduce((a, b) => a + b, 0);
+  document.getElementById('total-month').textContent = formatISK(totalDay * 30);
+
+  const btn = document.getElementById('reset-btn');
+  btn.className = 'reset-btn' + (allDone ? ' all-done' : '');
+  document.getElementById('reset-label').textContent = allDone ? '전체 완료! 타이머 리셋' : '수확 완료 — 타이머 리셋';
+
+  if (state.lastReset) {
+    const left = Math.max(0, CYCLE_MS - (Date.now() - new Date(state.lastReset).getTime()));
+    document.getElementById('next-time').textContent = msToHMS(left);
+    const d = new Date(state.lastReset);
+    document.getElementById('last-reset-text').textContent =
+      '마지막 리셋: ' + d.toLocaleDateString('ko-KR') + ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    document.getElementById('next-time').textContent = '—';
+    document.getElementById('last-reset-text').textContent = '아직 리셋한 적 없어요';
+  }
+
+  document.getElementById('planet-list').innerHTML = PLANETS.map(p => `
+    <div class="planet-row ${state.checked[p.id] ? 'done' : ''}" onclick="toggle(${p.id})">
+      <div class="checkbox ${state.checked[p.id] ? 'checked' : ''}">
+        <svg class="check-icon" viewBox="0 0 13 10"><path d="M1 5l3.5 3.5L12 1"/></svg>
+      </div>
+      <div class="planet-icon">${p.icon}</div>
+      <div class="planet-info">
+        <div class="planet-name">${p.name}</div>
+        <div class="planet-res">${p.resource}</div>
+      </div>
+      <div class="planet-isk">${formatISK(state.iskPerDay[p.id])} ISK/일</div>
+    </div>
+  `).join('');
+
+  document.getElementById('isk-inputs').innerHTML = PLANETS.map(p => `
+    <div class="isk-row">
+      <label>${p.icon} ${p.name}</label>
+      <input type="number" placeholder="ISK/일" value="${state.iskPerDay[p.id] || ''}" onchange="updateISK(${p.id}, this.value)" />
+    </div>
+  `).join('');
+}
+
+render();
+setInterval(render, 1000);
+</script>
+</body>
+</html>
